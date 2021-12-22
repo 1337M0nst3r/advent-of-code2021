@@ -15,12 +15,10 @@ struct Column {
 const INPUT_FILE = "day3.input";
 
 void main() {
-  // Should be 3912944
-  assert(part_one() == 3912944);
+  assert(part_one() == 3912944, "Part one should be 3912944");
   writeln("Part one: ", part_one());
 
-  // Should be 
-  // assert(part_two() == 0);
+  assert(part_two() == 4996233, "Part two should be 4996233");
   writeln("Part two: ", part_two());
 }
 
@@ -76,43 +74,40 @@ int part_one() {
   return power_consumption;
 }
 
-int clamp(int n, int max) {
-  if(n > max) return max;
-  return n;
+Column get_bit_stats(BitArray[] numbers, int bit_idx) {
+  Column stats;
+  foreach(n; numbers)
+    if(n[bit_idx] == 1) stats.ones++;
+    else stats.zeros++;
+  return stats;
 }
 
-int find_oxygen_generator_rating(BitArray[] nums, Column[] columns, uint bit_idx = 0) {
-  bool criteria = columns[bit_idx].zeros == columns[bit_idx].ones || columns[bit_idx].ones > columns[bit_idx].zeros;
-  BitArray[] nums_matching_criteria = nums.filter!(n => n[bit_idx] == criteria).array;
-  writeln(format("\33[38;5;4mO2\33[0m(%d): %s", bit_idx, nums_matching_criteria[0..clamp(cast(int)nums_matching_criteria.length, 10)]));
-  if(nums_matching_criteria.length == 1) {
-    return bitarray_to_int(nums_matching_criteria[0]);
-  }
-  return find_oxygen_generator_rating(nums_matching_criteria, columns, bit_idx + 1);
+BitArray find_bit_by_criteria(BitArray[] nums, bool delegate(Column) criteria, uint bit_idx = 0) {
+  auto bit_stats = get_bit_stats(nums, bit_idx);
+  BitArray[] nums_matching_criteria = nums.filter!(n => n[bit_idx] == criteria(bit_stats)).array;
+  if(nums_matching_criteria.length == 1)
+    return nums_matching_criteria[0];
+  return find_bit_by_criteria(nums_matching_criteria, criteria, bit_idx + 1);
 }
 
-int find_co2_scrubber_rating(BitArray[] nums, Column[] columns, uint bit_idx = 0) {
-  bool criteria = columns[bit_idx].ones == columns[bit_idx].zeros ? false : !(columns[bit_idx].ones > columns[bit_idx].zeros);
-  BitArray[] nums_matching_criteria = nums.filter!(n => n[bit_idx] == criteria).array;
-  writeln(format("CO2(%d): %s", bit_idx, nums_matching_criteria[0..clamp(cast(int)nums_matching_criteria.length, 10)]));
-  if(nums_matching_criteria.length == 1) {
-    return bitarray_to_int(nums_matching_criteria[0]);
-  }
-  return find_co2_scrubber_rating(nums_matching_criteria, columns, bit_idx + 1);
+int find_oxygen_generator_rating(BitArray[] nums) {
+  return bitarray_to_int(find_bit_by_criteria(nums, (bit_stats) {
+    return (bit_stats.zeros == bit_stats.ones || bit_stats.ones > bit_stats.zeros);
+  }));
+}
+
+int find_co2_scrubber_rating(BitArray[] nums) {
+  return bitarray_to_int(find_bit_by_criteria(nums, (bit_stats) {
+    return (bit_stats.ones == bit_stats.zeros ? false : !(bit_stats.ones > bit_stats.zeros));
+  }));
 }
 
 int part_two() {
   auto lines = splitLines(readText(INPUT_FILE));
 
   BitArray[] numbers = lines.map!(line => str_to_bitarray(line)).array;
-  auto columns = new Column[lines[0].length];
-  foreach(line; lines)
-    foreach(bit_idx, bit_str; std.array.split(line, ""))
-      if(bit_str == "0") columns[bit_idx].zeros++;
-      else columns[bit_idx].ones++;
-
-  auto oxygen_generator_rating = find_oxygen_generator_rating(numbers, columns);
-  auto co2_scrubber_rating = find_co2_scrubber_rating(numbers, columns);
+  auto oxygen_generator_rating = find_oxygen_generator_rating(numbers);
+  auto co2_scrubber_rating = find_co2_scrubber_rating(numbers);
 
   auto life_support_rating = oxygen_generator_rating * co2_scrubber_rating;
   return life_support_rating;
